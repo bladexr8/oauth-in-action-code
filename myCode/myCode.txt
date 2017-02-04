@@ -1,0 +1,1 @@
+This folder contains my code based on the Samples/Exercises from “OAuth2 in Action” (Manning Books)

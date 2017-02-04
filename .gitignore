@@ -3,4 +3,5 @@ example/native-client/platforms/
 example/native-client/plugins/
 exercises/ch-7-ex-0/platforms/
 exercises/ch-7-ex-0/plugins/
+node_modules
 .DS_Store
