@@ -59,7 +59,8 @@ app.get('/authorize', function(req, res){
 	var authorizeUrl = buildUrl(authServer.authorizationEndpoint, {
 		response_type: 'code',
 		client_id: client.client_id,
-		redirect_uri: client.redirect_uris[0]
+		redirect_uri: client.redirect_uris[0],
+		state: state
 	});
 
 	// re-direct browser to Authorization Endpoint
@@ -116,7 +117,7 @@ app.get('/callback', function(req, res){
 		headers: headers
 	});
 
-	console.log('Requesting access token for code %s', code);
+	console.log('[INFO] Requesting access token for code %s', code);
 
 	// extract access token from request
 	if (tokRes.statusCode >= 200 && tokRes.statusCode < 300) {
@@ -167,6 +168,6 @@ app.use('/', express.static('files/client'));
 var server = app.listen(9000, 'localhost', function () {
   var host = server.address().address;
   var port = server.address().port;
-  console.log('OAuth Client is listening at http://%s:%s', host, port);
+  console.log('[INFO] OAuth Client is listening at http://%s:%s', host, port);
 });
  
