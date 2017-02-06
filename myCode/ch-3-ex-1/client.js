@@ -37,6 +37,9 @@ var protectedResource = 'http://localhost:9002/resource';
 var state = null;
 
 var access_token = null;
+
+var refresh_token = null;
+
 var scope = null;
 
 app.get('/', function (req, res) {
@@ -122,8 +125,13 @@ app.get('/callback', function(req, res){
 	// extract access token from request
 	if (tokRes.statusCode >= 200 && tokRes.statusCode < 300) {
 		var body = JSON.parse(tokRes.getBody());
+		console.log('[INFO] Received Token Response: %s', JSON.stringify(body));
 		access_token = body.access_token;
 		console.log('[INFO] Got access token: %s', access_token);
+		if (body.refresh_token) {
+			refresh_token = body.refresh_token;
+			console.log('[INFO] Got refresh token: %s', refresh_token);
+		}
 		// scope??? where is this extracted from???
 		res.render('index', {access_token: access_token, scope: scope});
 	} else {
@@ -137,8 +145,76 @@ app.get('/fetch_resource', function(req, res) {
 	/*
 	 * Use the access token to call the resource server
 	 */
+
+	console.log('[INFO] Making Request with Access Token %s', access_token);
+
+	// set up Authorization Header
+	var headers = {
+		'Authorization': 'Bearer ' + access_token,
+		'Content-Type': 'application/x-www-form-urlencoded'
+	};
+
+	// get the protected resource
+	var resource = request('POST', protectedResource, {
+		headers: headers
+	});
 	
+	// check if successful
+	if (resource.statusCode >= 200 && resource.statusCode < 300) {
+		var body = JSON.parse(resource.getBody());
+		res.render('data', {resource: body});
+		return;
+	} else {
+		access_token = null;
+		if (refresh_token) {
+			refreshAccessToken(req, res);
+			return;
+		} else {
+			res.render('error', {error: resource.statusCode});
+			return;
+		}
+		
+	}
 });
+
+// helper function to refresh an access token
+var refreshAccessToken = function(req, res) {
+	var form_data = qs.stringify({
+		grant_type: 'refresh_token',
+		refresh_token: refresh_token
+	});
+	var headers = {
+		'Content-Type': 'application/x-www-form-urlencoded',
+		'Authorization': 'Basic ' + encodeClientCredentials(client.client_id, client.client_secret)
+	};
+	console.log('[INFO] Refreshing Token %s', refresh_token);
+
+	var tokRes = request('POST', authServer.tokenEndpoint, {
+		body: form_data,
+		header: headers
+	});
+
+	if (tokRes.statusCode >= 200 && tokRes.statusCode < 300) {
+		var body = JSON.parse(tokRes.getBody());
+
+		access_token = body.access_token;
+		console.log('[INFO] Got access token: %s', access_token);
+		if (body.refresh_token) {
+			refresh_token = body.refresh_token;
+			console.log('[INFO] Got refresh token: %s', refresh_token);
+		}
+		scope = body.scope;
+		console.log('[INFO] Got scope: %s', scope);
+
+		res.redirect('/fetch_resource');
+		return;
+	} else {
+		console.log('[INFO] No refresh token, asking the user to get a new access token');
+		refresh_token = null;
+		res.render('error', {error: 'Unable to refresh token.'});
+		return;
+	}
+};
 
 // helper function to build Url's
 var buildUrl = function(base, options, hash) {
